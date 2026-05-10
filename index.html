@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Dorm Tax Tracker</title>
+  <meta name="description" content="Track weekly dorm tax payments and shared expenses in real time." />
+  <meta name="theme-color" content="#0D0F1A" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════
+       LOADING
+  ══════════════════════════════════════ -->
+  <div id="loading-view">
+    <div class="spinner"></div>
+    <span class="loading-label">Loading…</span>
+  </div>
+
+
+  <!-- ══════════════════════════════════════
+       LOGIN VIEW
+  ══════════════════════════════════════ -->
+  <div id="login-view" hidden>
+    <div class="login-card">
+      <span class="login-icon">🏠</span>
+      <h1 class="login-title">Dorm Tax</h1>
+      <p class="login-sub">Payments &amp; shared expenses tracker</p>
+
+      <form id="login-form" novalidate>
+        <div class="field">
+          <label class="field-label" for="email-input">Email</label>
+          <input
+            type="email"
+            id="email-input"
+            class="field-input"
+            placeholder="yourname@example.com"
+            autocomplete="email"
+            inputmode="email"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="password-input">Password</label>
+          <input
+            type="password"
+            id="password-input"
+            class="field-input"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+
+        <button type="submit" class="btn-primary" id="login-btn">Sign In</button>
+        <div class="login-error" id="login-error" role="alert"></div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════
+       DASHBOARD VIEW
+  ══════════════════════════════════════ -->
+  <div id="dashboard-view" hidden>
+
+    <!-- Sticky Header -->
+    <header class="app-header">
+
+      <!-- Top row -->
+      <div class="header-row">
+        <div class="app-brand">
+          <span class="brand-pip"></span>
+          Dorm Tax
+        </div>
+        <div class="user-chip">
+          <div class="avatar" id="user-avatar" aria-hidden="true">?</div>
+          <span class="user-label" id="user-name-display">…</span>
+          <button class="btn-logout" id="logout-btn" aria-label="Sign out">Logout</button>
+        </div>
+      </div>
+
+      <!-- Budget display -->
+      <div class="budget-card" role="region" aria-label="Total budget">
+        <div>
+          <div class="budget-label">Total Budget</div>
+          <div class="budget-amount neu" id="budget-amount">₱0</div>
+        </div>
+        <div class="budget-right">
+          <div class="budget-stats">
+            <div class="stat-row">In: <b id="stat-income">₱0</b></div>
+            <div class="stat-row">Out: <b id="stat-expenses">₱0</b></div>
+            <div class="stat-row">Base: <b id="stat-base">₱0</b></div>
+          </div>
+          <button class="btn-edit-budget" id="edit-budget-btn" title="Set cash on hand base balance">✏️ Edit Budget</button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tab-nav" role="tablist">
+        <button class="tab-btn active" data-tab="payments" role="tab" aria-selected="true">💰 Payments</button>
+        <button class="tab-btn"        data-tab="expenses" role="tab" aria-selected="false">🧾 Expenses</button>
+      </div>
+
+    </header><!-- /.app-header -->
+
+
+    <!-- ── PAYMENTS PANE ───────────────────── -->
+    <div id="payments-tab" class="tab-pane" role="tabpanel">
+
+      <!-- Reminder banner (hidden by default) -->
+      <div class="reminder-banner" id="reminder-banner" hidden role="alert">
+        <span class="reminder-text" id="reminder-text"></span>
+        <button class="btn-dismiss" id="dismiss-reminder" aria-label="Dismiss reminder">✕</button>
+      </div>
+
+      <!-- Month / Year selector -->
+      <div class="month-year-row">
+        <span class="month-year-label">Month</span>
+        <select class="month-select" id="month-select" aria-label="Select month"></select>
+        <select class="year-select"  id="year-select"  aria-label="Select year"></select>
+      </div>
+
+      <!-- Dynamic week blocks (generated by JS) -->
+      <div id="week-blocks-container"></div>
+
+      <!-- Legacy payments (old schema without month/year) -->
+      <div id="legacy-payments-container"></div>
+
+    </div><!-- /#payments-tab -->
+
+
+    <!-- ── EXPENSES PANE ───────────────────── -->
+    <div id="expenses-tab" class="tab-pane" hidden role="tabpanel">
+
+      <div class="sec-label">Log an Expense</div>
+      <div class="expense-form-card">
+        <div class="expense-form-title">New Expense</div>
+        <form id="expense-form" novalidate>
+          <div class="expense-input-grid">
+            <input
+              type="text"
+              id="expense-desc"
+              class="exp-desc"
+              placeholder="What was bought? (e.g. Grocery run)"
+              autocomplete="off"
+              maxlength="120"
+            />
+            <input
+              type="number"
+              id="expense-amount"
+              class="exp-amount"
+              placeholder="₱ Amount"
+              min="0.01"
+              step="0.01"
+            />
+            <button type="submit" class="btn-add-expense" id="add-expense-btn">+ Add</button>
+          </div>
+          <div class="form-err" id="expense-error" role="alert"></div>
+        </form>
+      </div>
+
+      <div class="sec-label">Past Expenses</div>
+      <div id="expenses-list">
+        <div class="empty-state">
+          <div class="empty-icon">🧾</div>
+          <div class="empty-title">No expenses logged</div>
+          <div class="empty-sub">Add your first shared expense above</div>
+        </div>
+      </div>
+
+    </div><!-- /#expenses-tab -->
+
+  </div><!-- /#dashboard-view -->
+
+
+  <!-- Toast notification -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- App entry point -->
+  <script type="module" src="app.js"></script>
+
+</body>
+</html>
