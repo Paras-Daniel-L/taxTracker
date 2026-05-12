@@ -204,6 +204,19 @@ function fmtDate(ts) {
   });
 }
 
+/** Format a Firestore Timestamp with time: "Mon DD, YYYY · HH:MM". */
+function fmtDateFull(ts) {
+  if (!ts?.toDate) return "Just now";
+  const d = ts.toDate();
+  const date = d.toLocaleDateString("en-PH", {
+    month: "short", day: "numeric", year: "numeric",
+  });
+  const time = d.toLocaleTimeString("en-PH", {
+    hour: "2-digit", minute: "2-digit", hour12: true,
+  });
+  return `${date} · ${time}`;
+}
+
 /** Escape user-provided strings before inserting as innerHTML. */
 function esc(str) {
   return String(str ?? "")
@@ -531,6 +544,7 @@ async function witnessPayment(paymentId, btn) {
     await updateDoc(doc(db, "payments", paymentId), {
       status:      "verified",
       witnessName: getDisplayName(currentUser.email),
+      verifiedAt:  serverTimestamp(),
     });
     showToast("Payment witnessed ✓", "success");
   } catch (err) {
@@ -596,6 +610,30 @@ function renderPaymentCard(p) {
   const statusIcon = p.status === "verified" ? "✓" : "⏳";
   const statusText = p.status === "verified" ? "Verified" : "Pending";
 
+  // ── Date chips: surface submitted & verified timestamps ──────
+  const submittedChip = p.timestamp
+    ? `<div class="date-chip submitted">
+         <span class="date-chip-dot"></span>
+         Submitted ${fmtDateFull(p.timestamp)}
+       </div>`
+    : "";
+
+  const verifiedChip = (p.status === "verified" && p.verifiedAt)
+    ? `<div class="date-chip verified-date">
+         <span class="date-chip-dot"></span>
+         Verified ${fmtDateFull(p.verifiedAt)}${witnessLabel ? ` · ${esc(p.witnessName)}` : ""}
+       </div>`
+    : (p.status === "verified" && p.witnessName)
+    ? `<div class="date-chip verified-date">
+         <span class="date-chip-dot"></span>
+         Verified · by ${esc(p.witnessName)}
+       </div>`
+    : "";
+
+  const datesHtml = (submittedChip || verifiedChip)
+    ? `<div class="pc-dates">${submittedChip}${verifiedChip}</div>`
+    : "";
+
   return `
     <div class="payment-card ${esc(p.status)}">
       <div class="pc-row1">
@@ -606,6 +644,7 @@ function renderPaymentCard(p) {
         <span class="badge ${esc(p.status)}">${statusIcon} ${statusText}${witnessLabel}</span>
         <div class="pc-row2-actions">${actionsHtml}</div>
       </div>
+      ${datesHtml}
     </div>`;
 }
 
